@@ -27,7 +27,7 @@ static struct {
 	int		frames;		/* frames to run before stopping, 0 for no limit */
 	int		scale;
 	int		fps;
-	int		play, hash, bench;
+	int		play, hash, bench, stats;
 	const char	*gifPath, *ppmPrefix;
 } option = { .scale = 8, .fps = 12 };
 
@@ -149,6 +149,14 @@ finish(void)
 		printf("%.0f triangles per second\n", capturedCount * TRIANGLES_PER_FRAME / elapsed);
 	}
 
+	if (option.stats) {
+		printf("%llu command bytes and %llu data bytes over SPI\n",
+		       (unsigned long long)simDisplay.commandBytes, (unsigned long long)simDisplay.dataBytes);
+		if (capturedCount > 0)
+			printf("%llu data bytes per frame\n",
+			       (unsigned long long)simDisplay.dataBytes / capturedCount);
+	}
+
 	for (i = 0; option.ppmPrefix && i < capturedCount; i++) {
 		snprintf(path, sizeof(path), "%s%03d.ppm", option.ppmPrefix, i);
 		if (write_ppm(path, captured[i], option.scale) != 0) {
@@ -222,6 +230,7 @@ usage(const char *program)
 	       "  --fps N         frame rate of the GIF and of --play (default 12)\n"
 	       "  --hash          print a hash of each frame\n"
 	       "  --bench         print how fast the frames were rendered\n"
+	       "  --stats         print how many bytes went over SPI\n"
 	       "  --console       show what the firmware prints to its debug console\n",
 	       program);
 }
@@ -254,6 +263,8 @@ main(int argc, char **argv)
 			option.hash = 1;
 		else if (strcmp(a, "--bench") == 0)
 			option.bench = 1;
+		else if (strcmp(a, "--stats") == 0)
+			option.stats = 1;
 		else if (strcmp(a, "--console") == 0)
 			simConsole = 1;
 		else if (strcmp(a, "--gif") == 0 && hasValue)
@@ -272,9 +283,9 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (!option.gifPath && !option.ppmPrefix && !option.hash && !option.bench)
+	if (!option.gifPath && !option.ppmPrefix && !option.hash && !option.bench && !option.stats)
 		option.play = 1;
-	if (option.frames == 0 && (option.gifPath || option.ppmPrefix || option.hash || option.bench))
+	if (option.frames == 0 && (option.gifPath || option.ppmPrefix || option.hash || option.bench || option.stats))
 		option.frames = 36;
 
 	if (option.gifPath || option.ppmPrefix) {
