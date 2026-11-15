@@ -1,0 +1,13 @@
+--- a/Implementations/C/MainImplementation/i2c_comm_master.c
++++ b/Implementations/C/MainImplementation/i2c_comm_master.c
+@@ -460,7 +460,9 @@
+ 				
+ 					if(z < minz) {
+ 						minz = z;
+-						setcolor(image2,x,yline,rcolor[ebt[e1]],gcolor[ebt[e1]],bcolor[ebt[e1]]);
++						/* Depth view: the pixel holds z, 8 bits whole and 8 bits fraction. */
++						image2[2*x] = (uint8_t) z;
++						image2[2*x + 1] = (uint8_t) ((z - (uint8_t) z) * 256.0);
+ 					}
+ 				}	
+ 			}		
