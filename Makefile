@@ -5,7 +5,7 @@ CFLAGS	?= -O2
 BUILD	?= build
 
 FIRMWARE_DIR	:= Implementations/C
-SIM_OBJECTS	:= $(BUILD)/sim/main.o $(BUILD)/sim/ksdk.o $(BUILD)/sim/ssd1331.o
+SIM_OBJECTS	:= $(BUILD)/sim/main.o $(BUILD)/sim/ksdk.o $(BUILD)/sim/ssd1331.o $(BUILD)/sim/gif.o
 SIMULATORS	:= $(BUILD)/firmware $(BUILD)/firmware-novert $(BUILD)/firmware-noztest
 
 # The firmware is compiled as it is. -Dmain renames its entry point so that

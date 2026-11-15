@@ -2,12 +2,14 @@
  * Runs the firmware on a desktop. The firmware source is compiled as it is,
  * with its main renamed to firmware_main and the Kinetis SDK headers replaced
  * by the ones in sim/ksdk. Everything it sends to the display ends up in the
- * SSD1331 model, and this file turns the display contents into PPM files.
+ * SSD1331 model, and this file turns the display contents into a GIF or PPM
+ * files.
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "gif.h"
 #include "sim.h"
 
 #define WIDTH			SSD1331_WIDTH
@@ -18,8 +20,9 @@ int firmware_main(void);
 static struct {
 	int		frames;		/* frames to run before stopping */
 	int		scale;
-	const char	*ppmPrefix;
-} option = { .frames = 36, .scale = 8 };
+	int		fps;
+	const char	*gifPath, *ppmPrefix;
+} option = { .frames = 36, .scale = 8, .fps = 12 };
 
 static uint8_t **captured;
 static int capturedCount;
@@ -53,7 +56,7 @@ static void
 finish(void)
 {
 	char path[4096];
-	int i;
+	int i, status;
 
 	for (i = 0; option.ppmPrefix && i < capturedCount; i++) {
 		snprintf(path, sizeof(path), "%s%03d.ppm", option.ppmPrefix, i);
@@ -64,6 +67,18 @@ finish(void)
 	}
 	if (option.ppmPrefix && capturedCount > 0)
 		printf("wrote %s000.ppm to %s%03d.ppm\n", option.ppmPrefix, option.ppmPrefix, capturedCount - 1);
+
+	if (option.gifPath && capturedCount > 0) {
+		status = gif_write(option.gifPath, WIDTH, HEIGHT, captured, capturedCount, option.scale,
+				   (100 + option.fps / 2) / option.fps);
+		if (status != 0) {
+			fprintf(stderr, status == -2 ? "more than 256 colours, use --ppm instead of --gif\n"
+						     : "cannot write %s\n", option.gifPath);
+			exit(1);
+		}
+		printf("wrote %s (%d frames, %dx%d)\n", option.gifPath, capturedCount,
+		       WIDTH * option.scale, HEIGHT * option.scale);
+	}
 
 	exit(0);
 }
@@ -93,9 +108,11 @@ usage(const char *program)
 	       "Runs the firmware against a model of the SSD1331 display and writes\n"
 	       "what the display shows after each frame.\n"
 	       "\n"
+	       "  --gif FILE      write an animated GIF\n"
 	       "  --ppm PREFIX    write PREFIX000.ppm, PREFIX001.ppm, ...\n"
 	       "  --frames N      stop after N frames (default 36, one full turn)\n"
-	       "  --scale N       enlarge the output N times (default 8)\n"
+	       "  --scale N       enlarge GIF and PPM output N times (default 8)\n"
+	       "  --fps N         frame rate of the GIF (default 12)\n"
 	       "  --console       show what the firmware prints to its debug console\n",
 	       program);
 }
@@ -124,19 +141,23 @@ main(int argc, char **argv)
 
 		if (strcmp(a, "--console") == 0)
 			simConsole = 1;
+		else if (strcmp(a, "--gif") == 0 && hasValue)
+			option.gifPath = argv[++i];
 		else if (strcmp(a, "--ppm") == 0 && hasValue)
 			option.ppmPrefix = argv[++i];
 		else if (strcmp(a, "--frames") == 0 && hasValue)
 			option.frames = number(argv[++i], 1, 1000000);
 		else if (strcmp(a, "--scale") == 0 && hasValue)
 			option.scale = number(argv[++i], 1, 32);
+		else if (strcmp(a, "--fps") == 0 && hasValue)
+			option.fps = number(argv[++i], 1, 1000);
 		else {
 			usage(argv[0]);
 			return strcmp(a, "--help") == 0 || strcmp(a, "-h") == 0 ? 0 : 2;
 		}
 	}
 
-	if (!option.ppmPrefix) {
+	if (!option.gifPath && !option.ppmPrefix) {
 		usage(argv[0]);
 		return 2;
 	}
