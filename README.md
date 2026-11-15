@@ -33,6 +33,18 @@ I wrote this in 2018 for the Cambridge course 4B25, Embedded Systems for the Int
 - **Runs on a laptop.** `make` builds the same source against a model of the display, so you can watch it without the board. One desktop core renders more than 10,000 frames per second.
 - **Measured on the board.** The KL03 draws the scene at 2.6 to 5.8 frames per second, depending on which stages are switched on.
 
+## Try it
+
+```bash
+git clone https://github.com/charlesnchr/embedded-3d-rendering && cd embedded-3d-rendering
+make
+make run
+```
+
+You need a C compiler and make, nothing else. `make run` plays the turning model in the terminal until you press Ctrl-C. The terminal has to support 24-bit colour and be at least 96 columns wide.
+
+`make gif` writes one full turn to `out/spin.gif`. For single frames, `build/firmware --ppm frame- --frames 36` writes `frame-000.ppm` to `frame-035.ppm`, and `build/firmware --help` lists the other options.
+
 A complete graphics pipeline consists of the following steps:
 
 ![pipeline](Figures/pipeline.PNG "Graphics pipeline")
