@@ -192,6 +192,24 @@ def make_depth_test(no_test, depth, tested, path):
     return near, far
 
 
+def make_social_preview(frame, path):
+    """1280x640 image for the repository's social preview. It shows the middle of one frame."""
+    canvas = Image.new("RGB", (1280, 640), BG)
+    draw = ImageDraw.Draw(canvas)
+    scale = 9
+    panel = enlarge(frame.crop((16, 10, 80, 54)), scale)
+    framed(canvas, panel, (1280 - 60 - panel.width, (640 - panel.height) // 2), radius=14, pad=14)
+
+    x = 64
+    draw.text((x, 160), "embedded-3d-rendering", font=font(28, mono=True), fill=ACCENT, anchor="lm")
+    draw.text((x, 240), "3D graphics in", font=font(72, "Bold"), fill=INK, anchor="lm")
+    draw.text((x, 324), "2 kB of RAM", font=font(72, "Bold"), fill=INK, anchor="lm")
+    lines = ["A graphics pipeline in C for a Cortex-M0+", "No GPU, no FPU, no frame buffer", "Runs on your laptop with make"]
+    for i, line in enumerate(lines):
+        draw.text((x, 414 + 40 * i), line, font=font(27), fill=MUTED, anchor="lm")
+    canvas.save(path, optimize=True)
+
+
 def make_hardware_photo(path):
     """A smaller copy of the 2018 photo of the board, display and current sensor."""
     photo = Image.open(os.path.join(ROOT, "Figures", "cones.jpg")).convert("RGB")
@@ -230,6 +248,7 @@ def main():
     make_hero(spin, os.path.join(HERE, "hero.gif"))
     make_scanlines(rows, os.path.join(HERE, "scanlines.gif"))
     near, far = make_depth_test(no_test, depth, spin[0], os.path.join(HERE, "depth-test.png"))
+    make_social_preview(spin[0], os.path.join(HERE, "social-preview.png"))
     make_hardware_photo(os.path.join(HERE, "hardware.jpg"))
     make_benchmark(os.path.join(HERE, "benchmark.png"), tmp)
     print("depth in the first frame runs from %.2f to %.2f" % (near, far))
