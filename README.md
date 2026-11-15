@@ -156,3 +156,9 @@ I wrote the pipeline in MATLAB first, in [`Implementations/MATLAB/rasterise.m`](
 - All arithmetic is floating point in software, and some of it is double precision because the constants in the source have no `f` suffix. Fixed point would be much faster on this core.
 - A few pixels along the edges come out in the colour of the neighbouring face. You can see them flicker in the animation.
 - Building for the board needs the Kinetis SDK 1.1 and the build setup of the course, neither of which is included. I have not run the firmware on the hardware since 2018.
+
+## Background
+
+The three documents in `Reports` tell the story in order. The [proposal](Reports/Charles%20Christensen%20-%20Project%20Proposal.pdf) from November 2017 sets out the pipeline, the [interim report](Reports/Charles%20Christensen%20-%20Project%20Interim%20Report.pdf) covers the MATLAB prototype and the first worries about memory, and the [final report](Reports/Charles%20Christensen%20-%20Final%20project.pdf) from May 2018 has the measurements.
+
+Questions go to the [issue tracker](https://github.com/charlesnchr/embedded-3d-rendering/issues) or to `charles.n.chr@gmail.com`.
