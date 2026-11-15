@@ -4,6 +4,7 @@
 CC	?= cc
 CFLAGS	?= -O2
 BUILD	?= build
+PYTHON	?= python3
 
 FIRMWARE_DIR	:= Implementations/C
 SIM_OBJECTS	:= $(BUILD)/sim/main.o $(BUILD)/sim/ksdk.o $(BUILD)/sim/ssd1331.o $(BUILD)/sim/gif.o
@@ -77,7 +78,19 @@ size:
 	@echo "Stack frame of each function in bytes:"
 	@awk -F'[:\t]' '{ printf "%8d  %s\n", $$5, $$4 }' $(BUILD)/arm/firmware.su
 
+# The figures in the README. The depth view is the firmware with a three-line
+# patch that writes the depth of each pixel in place of its colour.
+$(BUILD)/depth-view.c: $(FIRMWARE_DIR)/MainImplementation/i2c_comm_master.c fig/depth-view.patch
+	@mkdir -p $(BUILD)
+	patch -s -o $@ $^
+
+$(BUILD)/firmware-depth: $(BUILD)/depth-view.c $(SIM_OBJECTS)
+	$(CC) $(CFLAGS) $(FIRMWARE_FLAGS) -o $@ $^
+
+figures: all $(BUILD)/firmware-depth
+	$(PYTHON) fig/make_figures.py --build $(BUILD)
+
 clean:
 	rm -rf $(BUILD) out
 
-.PHONY: all run gif check bench size clean
+.PHONY: all run gif check bench size figures clean

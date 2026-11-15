@@ -27,6 +27,7 @@ static struct {
 	int		frames;		/* frames to run before stopping, 0 for no limit */
 	int		scale;
 	int		fps;
+	int		everyRow;	/* capture after each row instead of each frame */
 	int		play, hash, bench, stats;
 	const char	*gifPath, *ppmPrefix;
 } option = { .scale = 8, .fps = 12 };
@@ -152,7 +153,7 @@ finish(void)
 	if (option.stats) {
 		printf("%llu command bytes and %llu data bytes over SPI\n",
 		       (unsigned long long)simDisplay.commandBytes, (unsigned long long)simDisplay.dataBytes);
-		if (capturedCount > 0)
+		if (capturedCount > 0 && !option.everyRow)
 			printf("%llu data bytes per frame\n",
 			       (unsigned long long)simDisplay.dataBytes / capturedCount);
 	}
@@ -188,7 +189,7 @@ sim_pixels_written(unsigned framesCompleted)
 	static uint8_t rgb[3 * WIDTH * HEIGHT];
 	struct timespec frameTime = { 0, 1000000000L / option.fps };
 
-	if (framesCompleted == 0)
+	if (!option.everyRow && framesCompleted == 0)
 		return;
 
 	if (option.hash)
@@ -228,6 +229,7 @@ usage(const char *program)
 	       "                  limit when only playing)\n"
 	       "  --scale N       enlarge GIF and PPM output N times (default 8)\n"
 	       "  --fps N         frame rate of the GIF and of --play (default 12)\n"
+	       "  --rows          capture after every row sent to the display\n"
 	       "  --hash          print a hash of each frame\n"
 	       "  --bench         print how fast the frames were rendered\n"
 	       "  --stats         print how many bytes went over SPI\n"
@@ -259,6 +261,8 @@ main(int argc, char **argv)
 
 		if (strcmp(a, "--play") == 0)
 			option.play = 1;
+		else if (strcmp(a, "--rows") == 0)
+			option.everyRow = 1;
 		else if (strcmp(a, "--hash") == 0)
 			option.hash = 1;
 		else if (strcmp(a, "--bench") == 0)
