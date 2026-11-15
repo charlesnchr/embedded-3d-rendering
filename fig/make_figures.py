@@ -22,6 +22,7 @@ PANEL = (22, 27, 34)
 BORDER = (48, 54, 61)
 INK = (240, 246, 252)
 MUTED = (139, 148, 158)
+ACCENT = (57, 211, 215)
 
 
 def font(size, weight="Regular", mono=False):
@@ -36,10 +37,12 @@ def font(size, weight="Regular", mono=False):
     return ImageFont.load_default()
 
 
-def simulate(build, binary, tmp, name, frames):
+def simulate(build, binary, tmp, name, frames, rows=False):
     """Run a simulator and return what the display showed, one 96x64 image per capture."""
     prefix = os.path.join(tmp, name + "-")
     command = [os.path.join(build, binary), "--ppm", prefix, "--scale", "1", "--frames", str(frames)]
+    if rows:
+        command.append("--rows")
     subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
     images = []
     for i in range(frames):
@@ -108,6 +111,41 @@ def make_hero(spin, path):
     save_gif(path, frames, 90)
 
 
+def make_scanlines(rows, path):
+    """The display filling up one row at a time, next to the single row the firmware holds in RAM."""
+    scale, margin = 6, 30
+    strip_h, gap, header = 30, 74, 34
+    size = (WIDTH * scale + 2 * margin + 20, header + HEIGHT * scale + gap + strip_h + 2 * margin + 30)
+    title, mono = font(19, "Bold"), font(17, mono=True)
+    x0 = margin + 20
+    frames, durations = [], []
+    for i, image in enumerate(rows):
+        row = i % HEIGHT
+        canvas = Image.new("RGB", size, BG)
+        draw = ImageDraw.Draw(canvas)
+
+        y0 = margin + header
+        draw.text((x0, margin + 6), "Display RAM in the SSD1331", font=title, fill=INK, anchor="lm")
+        draw.text((x0 + WIDTH * scale, margin + 6), "12,288 bytes", font=mono, fill=MUTED, anchor="rm")
+        framed(canvas, enlarge(image, scale), (x0, y0))
+
+        # Marker beside the row that has just arrived.
+        ym = y0 + row * scale + scale // 2
+        draw.polygon([(x0 - 26, ym - 7), (x0 - 14, ym), (x0 - 26, ym + 7)], fill=ACCENT)
+
+        y1 = y0 + HEIGHT * scale + gap
+        draw.text((x0, y1 - 24), "The row in the microcontroller's RAM", font=title, fill=INK, anchor="lm")
+        draw.text((x0 + WIDTH * scale, y1 - 24), "192 bytes", font=mono, fill=ACCENT, anchor="rm")
+        strip = replicate(image.crop((0, row, WIDTH, row + 1)), (WIDTH * scale, strip_h))
+        framed(canvas, strip, (x0, y1), radius=8, pad=6)
+        draw.text((x0, y1 + strip_h + 28), "row %2d of %d, frame %d" % (row + 1, HEIGHT, i // HEIGHT + 1),
+                  font=mono, fill=MUTED, anchor="lm")
+
+        frames.append(canvas)
+        durations.append(900 if row == HEIGHT - 1 else 40)
+    save_gif(path, frames, durations)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--build", default=os.path.join(ROOT, "build"), help="folder with the simulators")
@@ -117,8 +155,10 @@ def main():
     os.makedirs(tmp, exist_ok=True)
 
     spin = simulate(args.build, "firmware", tmp, "spin", 36)
+    rows = simulate(args.build, "firmware", tmp, "rows", 2 * HEIGHT, rows=True)
 
     make_hero(spin, os.path.join(HERE, "hero.gif"))
+    make_scanlines(rows, os.path.join(HERE, "scanlines.gif"))
 
 
 if __name__ == "__main__":
