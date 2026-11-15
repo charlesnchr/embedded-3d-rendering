@@ -7,7 +7,7 @@ BUILD	?= build
 
 FIRMWARE_DIR	:= Implementations/C
 SIM_OBJECTS	:= $(BUILD)/sim/main.o $(BUILD)/sim/ksdk.o $(BUILD)/sim/ssd1331.o $(BUILD)/sim/gif.o
-SIMULATORS	:= $(BUILD)/firmware $(BUILD)/firmware-novert $(BUILD)/firmware-noztest
+SIMULATORS	:= $(BUILD)/firmware $(BUILD)/firmware-novert $(BUILD)/firmware-noztest $(BUILD)/rasterise
 
 # The firmware is compiled as it is. -Dmain renames its entry point so that
 # sim/main.c can call it, and -Isim/ksdk makes its SDK includes find the
@@ -27,6 +27,9 @@ $(BUILD)/firmware-novert: $(FIRMWARE_DIR)/NoVert/i2c_comm_master.c $(SIM_OBJECTS
 	$(CC) $(CFLAGS) $(FIRMWARE_FLAGS) -o $@ $^
 
 $(BUILD)/firmware-noztest: $(FIRMWARE_DIR)/NoZtest/i2c_comm_master.c $(SIM_OBJECTS)
+	$(CC) $(CFLAGS) $(FIRMWARE_FLAGS) -o $@ $^
+
+$(BUILD)/rasterise: rasterise.c $(SIM_OBJECTS)
 	$(CC) $(CFLAGS) $(FIRMWARE_FLAGS) -o $@ $^
 
 # Play the model turning in the terminal until Ctrl-C.
