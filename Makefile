@@ -29,6 +29,10 @@ $(BUILD)/firmware-novert: $(FIRMWARE_DIR)/NoVert/i2c_comm_master.c $(SIM_OBJECTS
 $(BUILD)/firmware-noztest: $(FIRMWARE_DIR)/NoZtest/i2c_comm_master.c $(SIM_OBJECTS)
 	$(CC) $(CFLAGS) $(FIRMWARE_FLAGS) -o $@ $^
 
+# Play the model turning in the terminal until Ctrl-C.
+run: $(BUILD)/firmware
+	$(BUILD)/firmware
+
 # One full turn, 36 frames of 10 degrees, as an animated GIF.
 gif: $(BUILD)/firmware
 	@mkdir -p out
@@ -37,4 +41,4 @@ gif: $(BUILD)/firmware
 clean:
 	rm -rf $(BUILD) out
 
-.PHONY: all gif clean
+.PHONY: all run gif clean
