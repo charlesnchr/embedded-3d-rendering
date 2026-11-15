@@ -4,11 +4,13 @@
 
 Every rendered pixel in these figures was read from the display model after the
 firmware had sent it there. This script enlarges, crops and labels the frames
-and draws nothing of its own inside them. Needs Pillow.
+and draws nothing of its own inside them. Needs Pillow. The benchmark chart is
+converted from the 2018 PDF with pdftoppm when that is installed.
 """
 
 import argparse
 import os
+import shutil
 import subprocess
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont
@@ -198,6 +200,20 @@ def make_hardware_photo(path):
     photo.save(path, quality=84, optimize=True, progressive=True)
 
 
+def make_benchmark(path, tmp):
+    """The frame rate chart from the 2018 report, converted from PDF."""
+    if not shutil.which("pdftoppm"):
+        print("pdftoppm not found, keeping the existing", os.path.relpath(path, ROOT))
+        return
+    prefix = os.path.join(tmp, "benchmark")
+    subprocess.run(["pdftoppm", "-r", "170", "-png", "-singlefile",
+                    os.path.join(ROOT, "Figures", "benchmark.pdf"), prefix], check=True)
+    chart = Image.open(prefix + ".png").convert("RGB")
+    padded = Image.new("RGB", (chart.width + 60, chart.height + 60), (255, 255, 255))
+    padded.paste(chart, (30, 30))
+    padded.save(path, optimize=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--build", default=os.path.join(ROOT, "build"), help="folder with the simulators")
@@ -215,6 +231,7 @@ def main():
     make_scanlines(rows, os.path.join(HERE, "scanlines.gif"))
     near, far = make_depth_test(no_test, depth, spin[0], os.path.join(HERE, "depth-test.png"))
     make_hardware_photo(os.path.join(HERE, "hardware.jpg"))
+    make_benchmark(os.path.join(HERE, "benchmark.png"), tmp)
     print("depth in the first frame runs from %.2f to %.2f" % (near, far))
 
 
