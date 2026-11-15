@@ -1,5 +1,10 @@
 #include <stdio.h>
 
+#include "board.h"
+#include "fsl_spi_master_driver.h"
+
+#include "fsl_debug_console.h"
+
 volatile uint8_t inBuffer[32];
 volatile uint8_t payloadBytes[32];
 
