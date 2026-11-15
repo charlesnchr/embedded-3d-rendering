@@ -1,11 +1,12 @@
-# Builds the firmware for the desktop, to run against a model of the display.
+# Builds the firmware for the desktop and runs it against a model of the
+# display. The README describes what each target is for.
 
 CC	?= cc
 CFLAGS	?= -O2
 BUILD	?= build
 
 FIRMWARE_DIR	:= Implementations/C
-SIM_OBJECTS	:= $(BUILD)/sim/main.o $(BUILD)/sim/ksdk.o $(BUILD)/sim/ssd1331.o
+SIM_OBJECTS	:= $(BUILD)/sim/main.o $(BUILD)/sim/ksdk.o $(BUILD)/sim/ssd1331.o $(BUILD)/sim/gif.o
 SIMULATORS	:= $(BUILD)/firmware $(BUILD)/firmware-novert $(BUILD)/firmware-noztest
 
 # The firmware is compiled as it is. -Dmain renames its entry point so that
@@ -28,7 +29,12 @@ $(BUILD)/firmware-novert: $(FIRMWARE_DIR)/NoVert/i2c_comm_master.c $(SIM_OBJECTS
 $(BUILD)/firmware-noztest: $(FIRMWARE_DIR)/NoZtest/i2c_comm_master.c $(SIM_OBJECTS)
 	$(CC) $(CFLAGS) $(FIRMWARE_FLAGS) -o $@ $^
 
-clean:
-	rm -rf $(BUILD)
+# One full turn, 36 frames of 10 degrees, as an animated GIF.
+gif: $(BUILD)/firmware
+	@mkdir -p out
+	$(BUILD)/firmware --gif out/spin.gif
 
-.PHONY: all clean
+clean:
+	rm -rf $(BUILD) out
+
+.PHONY: all gif clean
