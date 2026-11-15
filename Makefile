@@ -51,7 +51,11 @@ check: all
 	$(BUILD)/firmware-noztest --hash | diff - sim/expected/firmware-noztest.txt
 	@echo "all frames match"
 
+# Rendering speed on this machine, over 1000 turns.
+bench: $(BUILD)/firmware
+	$(BUILD)/firmware --bench --frames 36000
+
 clean:
 	rm -rf $(BUILD) out
 
-.PHONY: all run gif check clean
+.PHONY: all run gif check bench clean
