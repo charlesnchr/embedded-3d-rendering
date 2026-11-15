@@ -43,7 +43,15 @@ gif: $(BUILD)/firmware
 	@mkdir -p out
 	$(BUILD)/firmware --gif out/spin.gif
 
+# Compare every frame with the hashes recorded in sim/expected.
+check: all
+	$(BUILD)/firmware --hash | diff - sim/expected/firmware.txt
+	$(BUILD)/rasterise --hash | diff - sim/expected/firmware.txt
+	$(BUILD)/firmware-novert --hash | diff - sim/expected/firmware-novert.txt
+	$(BUILD)/firmware-noztest --hash | diff - sim/expected/firmware-noztest.txt
+	@echo "all frames match"
+
 clean:
 	rm -rf $(BUILD) out
 
-.PHONY: all run gif clean
+.PHONY: all run gif check clean
