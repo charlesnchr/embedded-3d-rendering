@@ -19,6 +19,7 @@
 
 #define WIDTH			SSD1331_WIDTH
 #define HEIGHT			SSD1331_HEIGHT
+#define TRIANGLES_PER_FRAME	8	/* Ngeom in the firmware */
 
 int firmware_main(void);
 
@@ -26,12 +27,22 @@ static struct {
 	int		frames;		/* frames to run before stopping, 0 for no limit */
 	int		scale;
 	int		fps;
-	int		play, hash;
+	int		play, hash, bench, stats;
 	const char	*gifPath, *ppmPrefix;
 } option = { .scale = 8, .fps = 12 };
 
 static uint8_t **captured;
 static int capturedCount;
+static struct timespec startTime;
+
+static double
+seconds_since(const struct timespec *start)
+{
+	struct timespec now;
+
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	return (double)(now.tv_sec - start->tv_sec) + (double)(now.tv_nsec - start->tv_nsec) / 1e9;
+}
 
 static void
 read_display(uint8_t *rgb)
@@ -123,12 +134,27 @@ write_ppm(const char *path, const uint8_t *rgb, int scale)
 static void
 finish(void)
 {
+	const double elapsed = seconds_since(&startTime);
 	char path[4096];
 	int i, status;
 
 	if (option.play) {
 		fputs(restoreTerminal, stdout);
 		fflush(stdout);
+	}
+
+	if (option.bench && capturedCount > 0) {
+		printf("%d frames in %.3f s\n", capturedCount, elapsed);
+		printf("%.0f frames per second\n", capturedCount / elapsed);
+		printf("%.0f triangles per second\n", capturedCount * TRIANGLES_PER_FRAME / elapsed);
+	}
+
+	if (option.stats) {
+		printf("%llu command bytes and %llu data bytes over SPI\n",
+		       (unsigned long long)simDisplay.commandBytes, (unsigned long long)simDisplay.dataBytes);
+		if (capturedCount > 0)
+			printf("%llu data bytes per frame\n",
+			       (unsigned long long)simDisplay.dataBytes / capturedCount);
 	}
 
 	for (i = 0; option.ppmPrefix && i < capturedCount; i++) {
@@ -203,6 +229,8 @@ usage(const char *program)
 	       "  --scale N       enlarge GIF and PPM output N times (default 8)\n"
 	       "  --fps N         frame rate of the GIF and of --play (default 12)\n"
 	       "  --hash          print a hash of each frame\n"
+	       "  --bench         print how fast the frames were rendered\n"
+	       "  --stats         print how many bytes went over SPI\n"
 	       "  --console       show what the firmware prints to its debug console\n",
 	       program);
 }
@@ -233,6 +261,10 @@ main(int argc, char **argv)
 			option.play = 1;
 		else if (strcmp(a, "--hash") == 0)
 			option.hash = 1;
+		else if (strcmp(a, "--bench") == 0)
+			option.bench = 1;
+		else if (strcmp(a, "--stats") == 0)
+			option.stats = 1;
 		else if (strcmp(a, "--console") == 0)
 			simConsole = 1;
 		else if (strcmp(a, "--gif") == 0 && hasValue)
@@ -251,9 +283,9 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (!option.gifPath && !option.ppmPrefix && !option.hash)
+	if (!option.gifPath && !option.ppmPrefix && !option.hash && !option.bench && !option.stats)
 		option.play = 1;
-	if (option.frames == 0 && (option.gifPath || option.ppmPrefix || option.hash))
+	if (option.frames == 0 && (option.gifPath || option.ppmPrefix || option.hash || option.bench || option.stats))
 		option.frames = 36;
 
 	if (option.gifPath || option.ppmPrefix) {
@@ -270,6 +302,7 @@ main(int argc, char **argv)
 	}
 
 	ssd1331_reset(&simDisplay);	/* the state of the controller after power-on */
+	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	firmware_main();
 
 	/* Some builds of the firmware draw one frame and return. */

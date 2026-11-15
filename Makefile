@@ -51,7 +51,33 @@ check: all
 	$(BUILD)/firmware-noztest --hash | diff - sim/expected/firmware-noztest.txt
 	@echo "all frames match"
 
+# Rendering speed on this machine, over 1000 turns.
+bench: $(BUILD)/firmware
+	$(BUILD)/firmware --bench --frames 36000
+
+# Code size and stack use on the Cortex-M0+, the core of the KL03. The SDK is
+# not in this repository, so its functions are replaced by empty stubs. What is
+# left is the firmware source and the floating point routines from libgcc.
+ARM_PREFIX	?= arm-none-eabi-
+ARM_FLAGS	:= -mcpu=cortex-m0plus -mthumb
+
+size:
+	@mkdir -p $(BUILD)/arm
+	$(ARM_PREFIX)gcc $(ARM_FLAGS) $(ARM_CFLAGS) -Os -std=gnu99 -w -ffunction-sections -fdata-sections \
+		-fstack-usage -Isim/ksdk -c -o $(BUILD)/arm/firmware.o $(FIRMWARE_DIR)/MainImplementation/i2c_comm_master.c
+	$(ARM_PREFIX)nm -u $(BUILD)/arm/firmware.o \
+		| awk '$$2 !~ /^__aeabi/ { print ".thumb_func\n.global " $$2 "\n" $$2 ":" } END { print "\tbx lr" }' \
+		> $(BUILD)/arm/stubs.s
+	$(ARM_PREFIX)gcc $(ARM_FLAGS) -nostdlib -Wl,--gc-sections,-e,main -o $(BUILD)/arm/firmware.elf \
+		$(BUILD)/arm/firmware.o $(BUILD)/arm/stubs.s -lgcc
+	@echo
+	@echo "Firmware source alone, then linked with software floating point:"
+	@$(ARM_PREFIX)size $(BUILD)/arm/firmware.o $(BUILD)/arm/firmware.elf
+	@echo
+	@echo "Stack frame of each function in bytes:"
+	@awk -F'[:\t]' '{ printf "%8d  %s\n", $$5, $$4 }' $(BUILD)/arm/firmware.su
+
 clean:
 	rm -rf $(BUILD) out
 
-.PHONY: all run gif check clean
+.PHONY: all run gif check bench size clean
