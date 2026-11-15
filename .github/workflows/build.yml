@@ -1,0 +1,42 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  simulator:
+    name: simulator (${{ matrix.os }}, ${{ matrix.cc }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, cc: gcc }
+          - { os: ubuntu-latest, cc: clang }
+          - { os: macos-latest, cc: clang }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the firmware against the display model
+        run: make CC=${{ matrix.cc }}
+      - name: Compare every frame with the recorded hashes
+        run: make check
+      - name: Render one turn of the model
+        run: make gif
+      - name: Measure the rendering speed
+        run: make bench
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spin-${{ matrix.os }}-${{ matrix.cc }}
+          path: out/spin.gif
+
+  cortex-m0plus:
+    name: size on Cortex-M0+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the ARM cross compiler
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi libnewlib-arm-none-eabi
+      - name: Compile the firmware for the Cortex-M0+ and report its size
+        run: make size
