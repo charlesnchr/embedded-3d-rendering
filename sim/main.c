@@ -26,7 +26,7 @@ static struct {
 	int		frames;		/* frames to run before stopping, 0 for no limit */
 	int		scale;
 	int		fps;
-	int		play;
+	int		play, hash;
 	const char	*gifPath, *ppmPrefix;
 } option = { .scale = 8, .fps = 12 };
 
@@ -41,6 +41,22 @@ read_display(uint8_t *rgb)
 	for (y = 0; y < HEIGHT; y++)
 		for (x = 0; x < WIDTH; x++)
 			ssd1331_pixel(&simDisplay, x, y, &rgb[3 * (y * WIDTH + x)]);
+}
+
+/* 32-bit FNV-1a hash of the display RAM, to compare frames between builds. */
+static uint32_t
+display_hash(void)
+{
+	uint32_t hash = 2166136261u;
+	int x, y;
+
+	for (y = 0; y < HEIGHT; y++) {
+		for (x = 0; x < WIDTH; x++) {
+			hash = (hash ^ (simDisplay.ram[y][x] >> 8)) * 16777619u;
+			hash = (hash ^ (simDisplay.ram[y][x] & 0xFF)) * 16777619u;
+		}
+	}
+	return hash;
 }
 
 /* Reset the colours and show the cursor again. */
@@ -149,6 +165,9 @@ sim_pixels_written(unsigned framesCompleted)
 	if (framesCompleted == 0)
 		return;
 
+	if (option.hash)
+		printf("%08x\n", display_hash());
+
 	if (option.play) {
 		read_display(rgb);
 		draw_in_terminal(rgb);
@@ -183,6 +202,7 @@ usage(const char *program)
 	       "                  limit when only playing)\n"
 	       "  --scale N       enlarge GIF and PPM output N times (default 8)\n"
 	       "  --fps N         frame rate of the GIF and of --play (default 12)\n"
+	       "  --hash          print a hash of each frame\n"
 	       "  --console       show what the firmware prints to its debug console\n",
 	       program);
 }
@@ -211,6 +231,8 @@ main(int argc, char **argv)
 
 		if (strcmp(a, "--play") == 0)
 			option.play = 1;
+		else if (strcmp(a, "--hash") == 0)
+			option.hash = 1;
 		else if (strcmp(a, "--console") == 0)
 			simConsole = 1;
 		else if (strcmp(a, "--gif") == 0 && hasValue)
@@ -229,9 +251,9 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (!option.gifPath && !option.ppmPrefix)
+	if (!option.gifPath && !option.ppmPrefix && !option.hash)
 		option.play = 1;
-	if (option.frames == 0 && (option.gifPath || option.ppmPrefix))
+	if (option.frames == 0 && (option.gifPath || option.ppmPrefix || option.hash))
 		option.frames = 36;
 
 	if (option.gifPath || option.ppmPrefix) {

@@ -12,7 +12,9 @@ SIMULATORS	:= $(BUILD)/firmware $(BUILD)/firmware-novert $(BUILD)/firmware-nozte
 # The firmware is compiled as it is. -Dmain renames its entry point so that
 # sim/main.c can call it, and -Isim/ksdk makes its SDK includes find the
 # stand-in headers. Its warnings are left off, the source is from 2018.
-FIRMWARE_FLAGS	:= -std=gnu99 -w -Isim/ksdk -Dmain=firmware_main
+# -ffp-contract=off stops the compiler from merging a multiply and an add into
+# one instruction, which would round differently from one machine to the next.
+FIRMWARE_FLAGS	:= -std=gnu99 -w -ffp-contract=off -Isim/ksdk -Dmain=firmware_main
 
 all: $(SIMULATORS)
 
@@ -41,7 +43,15 @@ gif: $(BUILD)/firmware
 	@mkdir -p out
 	$(BUILD)/firmware --gif out/spin.gif
 
+# Compare every frame with the hashes recorded in sim/expected.
+check: all
+	$(BUILD)/firmware --hash | diff - sim/expected/firmware.txt
+	$(BUILD)/rasterise --hash | diff - sim/expected/firmware.txt
+	$(BUILD)/firmware-novert --hash | diff - sim/expected/firmware-novert.txt
+	$(BUILD)/firmware-noztest --hash | diff - sim/expected/firmware-noztest.txt
+	@echo "all frames match"
+
 clean:
 	rm -rf $(BUILD) out
 
-.PHONY: all run gif clean
+.PHONY: all run gif check clean
