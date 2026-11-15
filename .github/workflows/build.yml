@@ -30,3 +30,13 @@ jobs:
         with:
           name: spin-${{ matrix.os }}-${{ matrix.cc }}
           path: out/spin.gif
+
+  cortex-m0plus:
+    name: size on Cortex-M0+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the ARM cross compiler
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi libnewlib-arm-none-eabi
+      - name: Compile the firmware for the Cortex-M0+ and report its size
+        run: make size
