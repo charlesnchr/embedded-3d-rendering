@@ -2,12 +2,17 @@
  * Runs the firmware on a desktop. The firmware source is compiled as it is,
  * with its main renamed to firmware_main and the Kinetis SDK headers replaced
  * by the ones in sim/ksdk. Everything it sends to the display ends up in the
- * SSD1331 model, and this file turns the display contents into a GIF or PPM
- * files.
+ * SSD1331 model, and this file turns the display contents into a GIF, PPM
+ * files or an animation in the terminal.
  */
+#define _POSIX_C_SOURCE 200809L
+
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "gif.h"
 #include "sim.h"
@@ -18,11 +23,12 @@
 int firmware_main(void);
 
 static struct {
-	int		frames;		/* frames to run before stopping */
+	int		frames;		/* frames to run before stopping, 0 for no limit */
 	int		scale;
 	int		fps;
+	int		play;
 	const char	*gifPath, *ppmPrefix;
-} option = { .frames = 36, .scale = 8, .fps = 12 };
+} option = { .scale = 8, .fps = 12 };
 
 static uint8_t **captured;
 static int capturedCount;
@@ -35,6 +41,52 @@ read_display(uint8_t *rgb)
 	for (y = 0; y < HEIGHT; y++)
 		for (x = 0; x < WIDTH; x++)
 			ssd1331_pixel(&simDisplay, x, y, &rgb[3 * (y * WIDTH + x)]);
+}
+
+/* Reset the colours and show the cursor again. */
+static const char restoreTerminal[] = "\x1b[0m\x1b[?25h\n";
+
+static void
+on_interrupt(int signal)
+{
+	(void)signal;
+	if (write(STDOUT_FILENO, restoreTerminal, sizeof(restoreTerminal) - 1) < 0)
+		_exit(1);
+	_exit(130);
+}
+
+/*
+ * Draws the display in the terminal with 24-bit colour. Each character cell
+ * shows two pixels, the upper half block in the foreground colour over the
+ * background colour. Colours are only sent when they change.
+ */
+static void
+draw_in_terminal(const uint8_t *rgb)
+{
+	static char buffer[HEIGHT / 2 * (WIDTH * 44 + 8) + 16];
+	const uint8_t *lastTop, *lastBottom;
+	char *p = buffer;
+	int x, y;
+
+	p += sprintf(p, "\x1b[H");
+	for (y = 0; y < HEIGHT; y += 2) {
+		lastTop = lastBottom = NULL;
+		for (x = 0; x < WIDTH; x++) {
+			const uint8_t *top = &rgb[3 * (y * WIDTH + x)];
+			const uint8_t *bottom = &rgb[3 * ((y + 1) * WIDTH + x)];
+
+			if (!lastTop || memcmp(top, lastTop, 3) != 0)
+				p += sprintf(p, "\x1b[38;2;%d;%d;%dm", top[0], top[1], top[2]);
+			if (!lastBottom || memcmp(bottom, lastBottom, 3) != 0)
+				p += sprintf(p, "\x1b[48;2;%d;%d;%dm", bottom[0], bottom[1], bottom[2]);
+			p += sprintf(p, "\xE2\x96\x80");
+			lastTop = top;
+			lastBottom = bottom;
+		}
+		p += sprintf(p, "\x1b[0m\n");
+	}
+	fwrite(buffer, 1, (size_t)(p - buffer), stdout);
+	fflush(stdout);
 }
 
 static int
@@ -57,6 +109,11 @@ finish(void)
 {
 	char path[4096];
 	int i, status;
+
+	if (option.play) {
+		fputs(restoreTerminal, stdout);
+		fflush(stdout);
+	}
 
 	for (i = 0; option.ppmPrefix && i < capturedCount; i++) {
 		snprintf(path, sizeof(path), "%s%03d.ppm", option.ppmPrefix, i);
@@ -86,15 +143,26 @@ finish(void)
 void
 sim_pixels_written(unsigned framesCompleted)
 {
+	static uint8_t rgb[3 * WIDTH * HEIGHT];
+	struct timespec frameTime = { 0, 1000000000L / option.fps };
+
 	if (framesCompleted == 0)
 		return;
 
-	captured[capturedCount] = malloc(3 * WIDTH * HEIGHT);
-	if (!captured[capturedCount]) {
-		fprintf(stderr, "out of memory\n");
-		exit(1);
+	if (option.play) {
+		read_display(rgb);
+		draw_in_terminal(rgb);
+		nanosleep(&frameTime, NULL);
 	}
-	read_display(captured[capturedCount]);
+
+	if (option.gifPath || option.ppmPrefix) {
+		captured[capturedCount] = malloc(sizeof(rgb));
+		if (!captured[capturedCount]) {
+			fprintf(stderr, "out of memory\n");
+			exit(1);
+		}
+		read_display(captured[capturedCount]);
+	}
 
 	if (++capturedCount == option.frames)
 		finish();
@@ -105,14 +173,16 @@ usage(const char *program)
 {
 	printf("usage: %s [options]\n"
 	       "\n"
-	       "Runs the firmware against a model of the SSD1331 display and writes\n"
-	       "what the display shows after each frame.\n"
+	       "Runs the firmware against a model of the SSD1331 display. Without\n"
+	       "options it plays the animation in the terminal until you press Ctrl-C.\n"
 	       "\n"
+	       "  --play          play in the terminal (needs 24-bit colour, 96 columns)\n"
 	       "  --gif FILE      write an animated GIF\n"
 	       "  --ppm PREFIX    write PREFIX000.ppm, PREFIX001.ppm, ...\n"
-	       "  --frames N      stop after N frames (default 36, one full turn)\n"
+	       "  --frames N      stop after N frames (default 36, one full turn, or no\n"
+	       "                  limit when only playing)\n"
 	       "  --scale N       enlarge GIF and PPM output N times (default 8)\n"
-	       "  --fps N         frame rate of the GIF (default 12)\n"
+	       "  --fps N         frame rate of the GIF and of --play (default 12)\n"
 	       "  --console       show what the firmware prints to its debug console\n",
 	       program);
 }
@@ -139,7 +209,9 @@ main(int argc, char **argv)
 		const char *a = argv[i];
 		const int hasValue = i + 1 < argc;
 
-		if (strcmp(a, "--console") == 0)
+		if (strcmp(a, "--play") == 0)
+			option.play = 1;
+		else if (strcmp(a, "--console") == 0)
 			simConsole = 1;
 		else if (strcmp(a, "--gif") == 0 && hasValue)
 			option.gifPath = argv[++i];
@@ -157,15 +229,22 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (!option.gifPath && !option.ppmPrefix) {
-		usage(argv[0]);
-		return 2;
+	if (!option.gifPath && !option.ppmPrefix)
+		option.play = 1;
+	if (option.frames == 0 && (option.gifPath || option.ppmPrefix))
+		option.frames = 36;
+
+	if (option.gifPath || option.ppmPrefix) {
+		captured = calloc((size_t)option.frames, sizeof(*captured));
+		if (!captured) {
+			fprintf(stderr, "out of memory\n");
+			return 1;
+		}
 	}
 
-	captured = calloc((size_t)option.frames, sizeof(*captured));
-	if (!captured) {
-		fprintf(stderr, "out of memory\n");
-		return 1;
+	if (option.play) {
+		signal(SIGINT, on_interrupt);
+		fputs("\x1b[2J\x1b[?25l", stdout);
 	}
 
 	ssd1331_reset(&simDisplay);	/* the state of the controller after power-on */
