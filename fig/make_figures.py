@@ -146,6 +146,50 @@ def make_scanlines(rows, path):
     save_gif(path, frames, durations)
 
 
+def depth_values(image):
+    """Recover z from a frame of the depth-view build, which stores it as a 16-bit pixel."""
+    values = []
+    pixels = image.load()
+    for y in range(image.height):
+        for x in range(image.width):
+            r, g, b = pixels[x, y]
+            values.append(((r >> 3) << 11 | (g >> 2) << 5 | (b >> 3)) / 256.0)
+    return values
+
+
+def make_depth_test(no_test, depth, tested, path):
+    """Three views of the same frame: without the depth test, the depth itself, and with the test."""
+    z = depth_values(depth)
+    covered = [v for v in z if v > 0]
+    near, far = min(covered), max(covered)
+    grey = Image.new("RGB", (WIDTH, HEIGHT))
+    grey.putdata([(0, 0, 0) if v == 0 else (int(255 - 190 * (v - near) / (far - near)),) * 3 for v in z])
+
+    # Crop all three to the same box around the model.
+    boxes = [image.getbbox() for image in (no_test, grey, tested)]
+    left, top = min(b[0] for b in boxes) - 4, min(b[1] for b in boxes) - 4
+    right, bottom = max(b[2] for b in boxes) + 4, max(b[3] for b in boxes) + 4
+
+    scale, margin, gap, header, footer = 10, 30, 34, 40, 40
+    w, h = (right - left) * scale, (bottom - top) * scale
+    size = (3 * w + 2 * gap + 2 * margin, h + header + footer + 2 * margin)
+    canvas = Image.new("RGB", size, BG)
+    draw = ImageDraw.Draw(canvas)
+    title, note = font(22, "Bold"), font(18)
+    panels = [
+        (no_test, "Depth test off", "the triangle drawn last wins"),
+        (grey, "Depth per pixel", "brighter is nearer, never stored"),
+        (tested, "Depth test on", "the nearest triangle wins"),
+    ]
+    for i, (image, heading, caption) in enumerate(panels):
+        x = margin + i * (w + gap)
+        draw.text((x + w // 2, margin + 8), heading, font=title, fill=INK, anchor="mm")
+        framed(canvas, enlarge(image.crop((left, top, right, bottom)), scale), (x, margin + header))
+        draw.text((x + w // 2, margin + header + h + 30), caption, font=note, fill=MUTED, anchor="mm")
+    canvas.save(path, optimize=True)
+    return near, far
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--build", default=os.path.join(ROOT, "build"), help="folder with the simulators")
@@ -156,9 +200,13 @@ def main():
 
     spin = simulate(args.build, "firmware", tmp, "spin", 36)
     rows = simulate(args.build, "firmware", tmp, "rows", 2 * HEIGHT, rows=True)
+    no_test = simulate(args.build, "firmware-noztest", tmp, "noztest", 1)[0]
+    depth = simulate(args.build, "firmware-depth", tmp, "depth", 1)[0]
 
     make_hero(spin, os.path.join(HERE, "hero.gif"))
     make_scanlines(rows, os.path.join(HERE, "scanlines.gif"))
+    near, far = make_depth_test(no_test, depth, spin[0], os.path.join(HERE, "depth-test.png"))
+    print("depth in the first frame runs from %.2f to %.2f" % (near, far))
 
 
 if __name__ == "__main__":
