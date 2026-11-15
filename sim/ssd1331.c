@@ -105,6 +105,7 @@ ssd1331_write_command(ssd1331_t *d, const uint8_t *bytes, size_t count)
 	size_t i;
 
 	for (i = 0; i < count; i++) {
+		d->commandBytes++;
 		if (d->argCount < d->argsNeeded) {
 			d->args[d->argCount++] = bytes[i];
 		} else {
@@ -126,6 +127,8 @@ ssd1331_write_data(ssd1331_t *d, const uint8_t *bytes, size_t count)
 	size_t i;
 
 	for (i = 0; i < count; i++) {
+		d->dataBytes++;
+
 		/* In the 65k colour format a pixel is two bytes, high byte first. */
 		if (!d->haveHighByte) {
 			d->highByte = bytes[i];

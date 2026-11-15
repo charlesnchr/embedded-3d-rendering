@@ -26,6 +26,8 @@ typedef struct {
 
 	uint8_t		highByte;				/* first byte of a pixel */
 	uint8_t		haveHighByte;
+
+	uint64_t	commandBytes, dataBytes;		/* totals, for the statistics */
 } ssd1331_t;
 
 void ssd1331_reset(ssd1331_t *d);
