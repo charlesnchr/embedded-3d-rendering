@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 500" width="1060" height="500" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="title">The stages of the pipeline and the memory each one uses</title>
+  <desc id="desc">Once per frame the vertex stage transforms 8 triangles and builds an edge table. Then, 64 times per frame, the rasteriser finds the edges that cross one row, runs a depth test for each pixel, writes the row into a 192-byte buffer and sends it over SPI to the display. The display holds the full 12,288-byte frame. The microcontroller never does.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b949e"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#39d3d7"/>
+    </marker>
+  </defs>
+
+  <rect width="1060" height="500" rx="14" fill="#0d1117"/>
+
+  <!-- Everything inside this outline lives in the microcontroller. -->
+  <rect x="20" y="20" width="800" height="460" rx="12" fill="none" stroke="#30363d" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="800" y="46" text-anchor="end" font-size="14" fill="#8b949e">KL03 microcontroller, 2 kB of RAM</text>
+
+  <!-- Once per frame -->
+  <text x="42" y="46" font-size="13" font-weight="700" letter-spacing="1.2" fill="#39d3d7">ONCE PER FRAME</text>
+
+  <g font-size="15" fill="#f0f6fc">
+    <rect x="40" y="62" width="220" height="104" rx="9" fill="#161b22" stroke="#30363d"/>
+    <text x="56" y="89" font-weight="700">Triangles</text>
+    <text x="56" y="113" font-size="14" fill="#c9d1d9">8 triangles, one byte per</text>
+    <text x="56" y="132" font-size="14" fill="#c9d1d9">coordinate, a colour each</text>
+    <text x="56" y="154" font-size="13" fill="#8b949e">168 bytes</text>
+
+    <rect x="310" y="62" width="230" height="104" rx="9" fill="#161b22" stroke="#30363d"/>
+    <text x="326" y="89" font-weight="700">Vertex stage</text>
+    <text x="326" y="113" font-size="14" fill="#c9d1d9">rotate, project, divide by w,</text>
+    <text x="326" y="132" font-size="14" fill="#c9d1d9">scale to 96 x 64 pixels</text>
+    <text x="326" y="154" font-size="13" fill="#8b949e">two matrices, 100 bytes</text>
+
+    <rect x="590" y="62" width="210" height="104" rx="9" fill="#161b22" stroke="#30363d"/>
+    <text x="606" y="89" font-weight="700">Edge table</text>
+    <text x="606" y="113" font-size="14" fill="#c9d1d9">top row, bottom row, x at</text>
+    <text x="606" y="132" font-size="14" fill="#c9d1d9">the top and slope per edge</text>
+    <text x="606" y="154" font-size="13" fill="#8b949e">24 edges, 240 bytes</text>
+  </g>
+
+  <g stroke="#8b949e" stroke-width="1.6" fill="none" marker-end="url(#arrow)">
+    <path d="M260,114 H306"/>
+    <path d="M540,114 H586"/>
+    <path d="M695,166 V214 H150 V268"/>
+  </g>
+
+  <!-- Once per row -->
+  <text x="42" y="200" font-size="13" font-weight="700" letter-spacing="1.2" fill="#39d3d7">ONCE PER ROW, 64 ROWS PER FRAME</text>
+
+  <g font-size="15" fill="#f0f6fc">
+    <rect x="40" y="272" width="220" height="104" rx="9" fill="#161b22" stroke="#30363d"/>
+    <text x="56" y="299" font-weight="700">Active edges</text>
+    <text x="56" y="323" font-size="14" fill="#c9d1d9">the edges that cross this</text>
+    <text x="56" y="342" font-size="14" fill="#c9d1d9">row, sorted by triangle</text>
+    <text x="56" y="364" font-size="13" fill="#8b949e">48 bytes</text>
+
+    <rect x="310" y="272" width="230" height="104" rx="9" fill="#161b22" stroke="#30363d"/>
+    <text x="326" y="299" font-weight="700">Depth test per pixel</text>
+    <text x="326" y="323" font-size="14" fill="#c9d1d9">interpolate z in every triangle</text>
+    <text x="326" y="342" font-size="14" fill="#c9d1d9">over the pixel, keep the nearest</text>
+    <text x="326" y="364" font-size="13" fill="#8b949e">one float, no depth buffer</text>
+
+    <rect x="590" y="272" width="210" height="104" rx="9" fill="#161b22" stroke="#39d3d7" stroke-width="1.6"/>
+    <text x="606" y="299" font-weight="700">Row buffer</text>
+    <text x="606" y="323" font-size="14" fill="#c9d1d9">96 pixels of 16-bit colour,</text>
+    <text x="606" y="342" font-size="14" fill="#c9d1d9">the only pixels in RAM</text>
+    <text x="606" y="364" font-size="13" font-weight="700" fill="#39d3d7">192 bytes</text>
+  </g>
+
+  <g stroke="#8b949e" stroke-width="1.6" fill="none" marker-end="url(#arrow)">
+    <path d="M260,324 H306"/>
+    <path d="M540,324 H586"/>
+    <path d="M695,376 V428 H150 V380"/>
+  </g>
+  <text x="422" y="452" text-anchor="middle" font-size="14" fill="#8b949e">move each edge along its slope, then render the next row</text>
+
+  <!-- The display, outside the microcontroller -->
+  <path d="M800,324 H866" stroke="#39d3d7" stroke-width="1.8" fill="none" marker-end="url(#arrow-accent)"/>
+  <text x="843" y="312" text-anchor="middle" font-size="13" font-weight="700" fill="#39d3d7">SPI</text>
+
+  <g font-size="15" fill="#f0f6fc">
+    <rect x="870" y="240" width="170" height="186" rx="9" fill="#161b22" stroke="#30363d"/>
+    <text x="886" y="268" font-weight="700">SSD1331 display</text>
+    <rect x="886" y="282" width="138" height="92" rx="4" fill="#000000" stroke="#30363d"/>
+    <g fill="#f85149">
+      <rect x="948" y="304" width="6" height="6"/>
+      <rect x="942" y="310" width="18" height="6"/>
+      <rect x="936" y="316" width="30" height="6"/>
+      <rect x="930" y="322" width="42" height="6"/>
+    </g>
+    <rect x="886" y="328" width="138" height="6" fill="#39d3d7" opacity="0.85"/>
+    <text x="886" y="394" font-size="13" fill="#8b949e">holds the whole frame,</text>
+    <text x="886" y="412" font-size="13" fill="#8b949e">12,288 bytes</text>
+  </g>
+</svg>
