@@ -21,7 +21,17 @@
   <sub>The firmware from 2018, compiled as it is and run against a model of the display. <code>make run</code> plays this in your terminal.</sub>
 </p>
 
-Implementation of a light-weight 3D graphics pipeline for embedded systems. The implementation was developed as part of a project in an embedded systems course at Cambridge University (4B25). The C implementations inside the folder `Implementations` specifically target the Freedom KL03 microcontroller unit interfaced with an OLED display based on the SSD1331 driver chip (if interested see `Datasheets`). The KL03 has a very limiting 2 kB SRAM, which has driven the implementation to prioritise memory efficiency over speed. Freedom MCUs are programmed using the Kinetis SDK (KSDK), which is referenced in the C code within `Implementations`, while for simplicity the version in the root folder,  `rasterise.c`, has been stripped and only contains platform-independent steps for the graphics pipeline (with the exception being a command for drawing to the display).
+One frame for this display takes 12,288 bytes. The microcontroller has 2,048 bytes of RAM. So the renderer never holds a frame. It works out one row of 96 pixels, sends those 192 bytes to the display over SPI and starts on the next row. A depth buffer would not fit either, so there is none. For every pixel the rasteriser computes the depth of each triangle that covers it, keeps the nearest and forgets the number.
+
+I wrote this in 2018 for the Cambridge course 4B25, Embedded Systems for the Internet of Things. OpenGL ES assumes a GPU and far more memory than a small microcontroller has, and I wanted to know how much of that kind of pipeline fits on a Freedom KL03 board, a 48 MHz Cortex-M0+ with 32 kB of flash. Most of it does.
+
+- **192 bytes of pixels.** The only pixels in RAM are the row being drawn. The full frame is in the display controller, which the firmware fills from the top down.
+- **Depth test without a depth buffer.** Triangles that overlap come out right, at the cost of one interpolation per triangle per pixel.
+- **784 bytes of stack for the whole renderer.** That covers the 8 triangles and their colours, two matrices, the edge table, the active edge list and the row buffer.
+- **4 kB of code.** The firmware source compiles to 4,114 bytes of Thumb code at `-Os`. Software floating point from libgcc brings it to 17.5 kB.
+- **One file to read.** [`rasterise.c`](rasterise.c) is 449 lines of C. The only hardware it touches is an SPI port and three GPIO pins.
+- **Runs on a laptop.** `make` builds the same source against a model of the display, so you can watch it without the board. One desktop core renders more than 10,000 frames per second.
+- **Measured on the board.** The KL03 draws the scene at 2.6 to 5.8 frames per second, depending on which stages are switched on.
 
 A complete graphics pipeline consists of the following steps:
 
