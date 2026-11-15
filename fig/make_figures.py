@@ -190,6 +190,14 @@ def make_depth_test(no_test, depth, tested, path):
     return near, far
 
 
+def make_hardware_photo(path):
+    """A smaller copy of the 2018 photo of the board, display and current sensor."""
+    photo = Image.open(os.path.join(ROOT, "Figures", "cones.jpg")).convert("RGB")
+    photo = photo.crop((0, 500, photo.width, 2700))
+    photo = photo.resize((1100, round(1100 * photo.height / photo.width)), Image.LANCZOS)
+    photo.save(path, quality=84, optimize=True, progressive=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--build", default=os.path.join(ROOT, "build"), help="folder with the simulators")
@@ -206,6 +214,7 @@ def main():
     make_hero(spin, os.path.join(HERE, "hero.gif"))
     make_scanlines(rows, os.path.join(HERE, "scanlines.gif"))
     near, far = make_depth_test(no_test, depth, spin[0], os.path.join(HERE, "depth-test.png"))
+    make_hardware_photo(os.path.join(HERE, "hardware.jpg"))
     print("depth in the first frame runs from %.2f to %.2f" % (near, far))
 
 
