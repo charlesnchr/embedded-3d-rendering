@@ -41,7 +41,7 @@ make
 make run
 ```
 
-You need a C compiler and make, nothing else. `make run` plays the turning model in the terminal until you press Ctrl-C. The terminal has to support 24-bit colour and be at least 96 columns wide.
+You need a C compiler and make, nothing else. `make run` plays the turning model in the terminal until you press Ctrl-C. The terminal has to support 24-bit colour and be at least 96 columns wide and 33 lines tall.
 
 `make gif` writes one full turn to `out/spin.gif`. For single frames, `build/firmware --ppm frame- --frames 36` writes `frame-000.ppm` to `frame-035.ppm`, and `build/firmware --help` lists the other options.
 

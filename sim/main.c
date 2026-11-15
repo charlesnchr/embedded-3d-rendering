@@ -215,26 +215,27 @@ sim_pixels_written(unsigned framesCompleted)
 }
 
 static void
-usage(const char *program)
+usage(FILE *file, const char *program)
 {
-	printf("usage: %s [options]\n"
-	       "\n"
-	       "Runs the firmware against a model of the SSD1331 display. Without\n"
-	       "options it plays the animation in the terminal until you press Ctrl-C.\n"
-	       "\n"
-	       "  --play          play in the terminal (needs 24-bit colour, 96 columns)\n"
-	       "  --gif FILE      write an animated GIF\n"
-	       "  --ppm PREFIX    write PREFIX000.ppm, PREFIX001.ppm, ...\n"
-	       "  --frames N      stop after N frames (default 36, one full turn, or no\n"
-	       "                  limit when only playing)\n"
-	       "  --scale N       enlarge GIF and PPM output N times (default 8)\n"
-	       "  --fps N         frame rate of the GIF and of --play (default 12)\n"
-	       "  --rows          capture after every row sent to the display\n"
-	       "  --hash          print a hash of each frame\n"
-	       "  --bench         print how fast the frames were rendered\n"
-	       "  --stats         print how many bytes went over SPI\n"
-	       "  --console       show what the firmware prints to its debug console\n",
-	       program);
+	fprintf(file,
+		"usage: %s [options]\n"
+		"\n"
+		"Runs the firmware against a model of the SSD1331 display. Without\n"
+		"options it plays the animation in the terminal until you press Ctrl-C.\n"
+		"\n"
+		"  --play          play in the terminal (needs 24-bit colour, 96 columns)\n"
+		"  --gif FILE      write an animated GIF\n"
+		"  --ppm PREFIX    write PREFIX000.ppm, PREFIX001.ppm, ...\n"
+		"  --frames N      stop after N frames (default 36, one full turn, or no\n"
+		"                  limit when only playing)\n"
+		"  --scale N       enlarge GIF and PPM output N times (default 8)\n"
+		"  --fps N         frame rate of the GIF and of --play (default 12)\n"
+		"  --rows          capture after every row sent to the display\n"
+		"  --hash          print a hash of each frame\n"
+		"  --bench         print how fast the frames were rendered\n"
+		"  --stats         print how many bytes went over SPI\n"
+		"  --console       show what the firmware prints to its debug console\n",
+		program);
 }
 
 static int
@@ -281,9 +282,13 @@ main(int argc, char **argv)
 			option.scale = number(argv[++i], 1, 32);
 		else if (strcmp(a, "--fps") == 0 && hasValue)
 			option.fps = number(argv[++i], 1, 1000);
-		else {
-			usage(argv[0]);
-			return strcmp(a, "--help") == 0 || strcmp(a, "-h") == 0 ? 0 : 2;
+		else if (strcmp(a, "--help") == 0 || strcmp(a, "-h") == 0) {
+			usage(stdout, argv[0]);
+			return 0;
+		} else {
+			fprintf(stderr, "%s: unknown option or missing value: %s\n\n", argv[0], a);
+			usage(stderr, argv[0]);
+			return 2;
 		}
 	}
 
