@@ -101,7 +101,7 @@ Two more results from the report:
 
 ## Size and speed
 
-| | | How to reproduce |
+| Measure | Value | How to reproduce |
 | --- | --- | --- |
 | Pixels held in RAM | 192 bytes, one row of 96 pixels | `#define N 192` in the source |
 | One frame in the display | 12,288 bytes, 6 times the RAM of the KL03 | `build/firmware --stats` |
