@@ -133,11 +133,17 @@ I wrote the pipeline in MATLAB first, in [`Implementations/MATLAB/rasterise.m`](
   <img src="Figures/geom.png" alt="The two tetrahedra rendered by the MATLAB prototype, as vector outlines and as raster images at 96 by 64 and 960 by 640 pixels" width="700">
 </p>
 
-## Repository layout
-(1) The three reports related to the project are present in the `Reports` folder. Most importantly the final project report showing the results of the project. The project proposal and interim report contain more details on the project's subgoals. 
+## What is in the repository
 
-(2) Plots of results, diagram of pipeline and pictures of hardware setup are present in the folder `Figures`.
-
-(3) The source code is in `Implementations/C` and a more platform-independent version stripped of SDK-specific calls is in the root folder, `rasterise.c`. There are a few versions of the implementation. A version without vertex shader based on pre-computed static vertices are in `Implementations/C/NoVert/i2c_comm_master.c`, and a version without Z depth testing is in `Implementations/C/NoZtest/i2c_comm_master.c`.
-
-(4) A MATLAB implementation of the exact same pipeline, which was developed as a prototype before the embedded version, is in `Implementations/MATLAB/rasterise.m`. 
+| Path | Contents |
+| --- | --- |
+| `rasterise.c` | The pipeline without the board start-up code. Read this one first |
+| `Implementations/C/MainImplementation/` | The complete firmware for the KL03, with vertex stage and depth test |
+| `Implementations/C/NoVert/` | Variant that skips the vertex stage and draws vertices transformed in advance |
+| `Implementations/C/NoZtest/` | Variant without the depth test |
+| `Implementations/MATLAB/` | The prototype and the script that defines the model |
+| `sim/` | Stand-in SDK headers, the display model and the program that writes GIF, PPM and terminal output |
+| `fig/` | The figures on this page and `make_figures.py`, which regenerates them with `make figures` |
+| `Reports/` | Project proposal, interim report and final report |
+| `Figures/` | Figures and photos from the report |
+| `Datasheets/` | Datasheets for the microcontroller, the board, the SDK and the display |
